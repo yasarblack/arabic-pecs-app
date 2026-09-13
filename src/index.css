@@ -401,4 +401,13 @@ button {
     border-radius: 18px;
     padding: 16px;
   }
+
+  .admin-btn {
+  margin-top: 0;
+  background: #2a9d8f;
+}
+
+.admin-btn:hover {
+  opacity: 0.92;
+}
 }
