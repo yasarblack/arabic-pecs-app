@@ -138,3 +138,267 @@ button {
   font-size: 18px;
   color: #777;
 }
+
+
+/* Admin dashboard */
+.admin-page {
+  min-height: 100vh;
+  background: #f5f7fb;
+  direction: rtl;
+}
+
+.admin-shell {
+  width: min(1100px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 24px 0 50px;
+}
+
+.admin-login-card {
+  max-width: 520px;
+  padding-top: 55px;
+}
+
+.admin-topbar,
+.admin-panel,
+.admin-login-card {
+  background: #fff;
+  border: 1px solid #e4e8ef;
+  border-radius: 22px;
+  box-shadow: 0 8px 30px rgba(24, 32, 42, .06);
+}
+
+.admin-topbar {
+  padding: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.admin-topbar h1,
+.admin-login-card h1,
+.admin-panel h2 {
+  margin: 0 0 7px;
+  color: #2b2d42;
+}
+
+.admin-topbar p,
+.admin-login-card p,
+.admin-section-title p {
+  margin: 0;
+  color: #667085;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-panel {
+  padding: 22px;
+  margin-bottom: 18px;
+}
+
+.admin-panel h2 {
+  margin-bottom: 18px;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.admin-icon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: #eef2ff;
+  font-size: 30px;
+}
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.admin-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-weight: 700;
+  color: #344054;
+}
+
+.admin-form label span {
+  font-weight: 400;
+  color: #667085;
+}
+
+.admin-form input,
+.admin-form select {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #ccd4df;
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+}
+
+.admin-form input:focus,
+.admin-form select:focus {
+  outline: 3px solid rgba(67, 97, 238, .13);
+  border-color: #4361ee;
+}
+
+.admin-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.admin-primary,
+.admin-secondary,
+.admin-danger,
+.admin-back {
+  border: 0;
+  border-radius: 12px;
+  padding: 11px 16px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.admin-primary {
+  background: #4361ee;
+  color: #fff;
+}
+
+.admin-primary:disabled {
+  opacity: .65;
+  cursor: wait;
+}
+
+.admin-secondary {
+  background: #eef2f6;
+  color: #344054;
+}
+
+.admin-danger {
+  width: 100%;
+  margin-top: 10px;
+  background: #fee4e2;
+  color: #b42318;
+}
+
+.admin-back {
+  background: transparent;
+  color: #4361ee;
+  padding: 0;
+  margin-bottom: 20px;
+}
+
+.admin-alert {
+  padding: 11px 13px;
+  border-radius: 12px;
+}
+
+.admin-alert.error {
+  background: #fff0ef;
+  color: #b42318;
+}
+
+.admin-alert.success {
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.admin-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.admin-card {
+  overflow: hidden;
+  border: 1px solid #e4e8ef;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.admin-card > img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+  background: #f2f4f7;
+}
+
+.admin-card-body {
+  padding: 13px;
+}
+
+.admin-card-body h3 {
+  margin: 0 0 5px;
+  color: #2b2d42;
+}
+
+.admin-card-body p {
+  margin: 0;
+  color: #667085;
+  font-size: 14px;
+}
+
+.admin-card audio {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.admin-empty,
+.admin-loading {
+  padding: 35px;
+  text-align: center;
+  color: #667085;
+}
+
+@media (max-width: 700px) {
+  .admin-shell {
+    width: min(100% - 18px, 1100px);
+    padding-top: 10px;
+  }
+
+  .admin-topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-panel,
+  .admin-topbar,
+  .admin-login-card {
+    border-radius: 18px;
+    padding: 16px;
+  }
+}
