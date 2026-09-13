@@ -6,6 +6,7 @@ export default function ProfileSelect() {
   const [profiles, setProfiles] = useState([])
   const [loading, setLoading] = useState(true)
   const [newName, setNewName] = useState('')
+  const [isAdmin, setIsAdmin] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -14,12 +15,21 @@ export default function ProfileSelect() {
 
   async function loadProfiles() {
     setLoading(true)
+
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
       navigate('/')
       return
     }
+
+    const { data: adminRow } = await supabase
+      .from('content_admins')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    setIsAdmin(!!adminRow)
 
     const { data, error } = await supabase
       .from('profiles')
@@ -36,6 +46,11 @@ export default function ProfileSelect() {
 
     const { data: { user } } = await supabase.auth.getUser()
 
+    if (!user) {
+      navigate('/')
+      return
+    }
+
     const { error } = await supabase
       .from('profiles')
       .insert({ parent_id: user.id, child_name: newName.trim() })
@@ -46,15 +61,35 @@ export default function ProfileSelect() {
     }
   }
 
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    navigate('/')
+  }
+
   if (loading) return <div className="loading">...جاري التحميل</div>
 
   return (
     <div className="container">
       <h2>اختر ملف الطفل</h2>
 
+      {isAdmin && (
+        <button
+          onClick={() => navigate('/admin')}
+          className="primary-btn admin-btn"
+          style={{ marginBottom: 20 }}
+        >
+          ⚙️ إدارة البطاقات
+        </button>
+      )}
+
       <div className="profile-grid">
         {profiles.map((p) => (
-          <div key={p.id} className="profile-card" onClick={() => navigate(`/board/${p.id}`)} style={{ cursor: 'pointer' }}>
+          <div
+            key={p.id}
+            className="profile-card"
+            onClick={() => navigate(`/board/${p.id}`)}
+            style={{ cursor: 'pointer' }}
+          >
             👦 {p.child_name}
           </div>
         ))}
@@ -72,6 +107,19 @@ export default function ProfileSelect() {
           + إضافة ملف جديد
         </button>
       </form>
+
+      <button
+        onClick={handleLogout}
+        style={{
+          marginTop: 24,
+          background: 'transparent',
+          color: '#777',
+          textDecoration: 'underline',
+          fontSize: 15,
+        }}
+      >
+        تسجيل الخروج
+      </button>
     </div>
   )
 }
