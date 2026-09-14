@@ -155,76 +155,64 @@ export default function Admin() {
   }
 
   async function handleAdd(e) {
-    e.preventDefault()
+  e.preventDefault()
 
-    setError('')
-    setMessage('')
+  const formElement = e.currentTarget
 
-    if (!label.trim() || !categoryId || !image) {
-      setError('الاسم والتصنيف والصورة مطلوبة.')
-      return
-    }
+  setError('')
+  setMessage('')
 
-    setSaving(true)
+  if (!session) return
 
-    try {
-      // نأخذ أحدث Session قبل الرفع
-      const freshSession = await getFreshSession()
-
-      const form = new FormData()
-
-      form.append('label_ar', label.trim())
-      form.append('category_id', categoryId)
-      form.append('difficulty_level', difficulty)
-      form.append('image', image)
-
-      if (audio) {
-        form.append('audio', audio)
-      }
-
-      setMessage(
-        audio
-          ? 'جاري رفع الصورة والصوت…'
-          : 'جاري رفع الصورة…',
-      )
-
-      const response = await fetch(FUNCTION_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${freshSession.access_token}`,
-        },
-        body: form,
-      })
-
-      const result = await response.json().catch(() => ({}))
-
-      if (!response.ok) {
-        throw new Error(
-          result.error || 'فشل إضافة البطاقة',
-        )
-      }
-
-      setLabel('')
-      setDifficulty('1')
-      setImage(null)
-      setAudio(null)
-
-      e.currentTarget.reset()
-
-      setMessage('تمت إضافة البطاقة بنجاح ❤️')
-
-      // نستخدم Session حديثة أيضًا عند إعادة تحميل القائمة
-      await loadCards()
-    } catch (err) {
-      setError(
-        err.message ||
-        'حدث خطأ غير متوقع أثناء رفع البطاقة.',
-      )
-      setMessage('')
-    } finally {
-      setSaving(false)
-    }
+  if (!label.trim() || !categoryId || !image) {
+    setError('الاسم والتصنيف والصورة مطلوبة.')
+    return
   }
+
+  setSaving(true)
+
+  try {
+    const form = new FormData()
+    form.append('label_ar', label.trim())
+    form.append('category_id', categoryId)
+    form.append('difficulty_level', difficulty)
+    form.append('image', image)
+
+    if (audio) {
+      form.append('audio', audio)
+    }
+
+    const response = await fetch(FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: form,
+    })
+
+    const result = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      throw new Error(result.error || 'فشل إضافة البطاقة')
+    }
+
+    setLabel('')
+    setDifficulty('1')
+    setImage(null)
+    setAudio(null)
+
+    // مهم: نستخدم المرجع الذي حفظناه قبل await
+    formElement.reset()
+
+    setMessage('تمت إضافة البطاقة بنجاح ❤️')
+
+    await loadCards(session)
+  } catch (err) {
+    setError(err.message || 'حدث خطأ غير متوقع')
+  } finally {
+    setSaving(false)
+  }
+}
 
   async function handleDelete(cardId) {
     if (!window.confirm('هل تريد حذف هذه البطاقة؟')) {
