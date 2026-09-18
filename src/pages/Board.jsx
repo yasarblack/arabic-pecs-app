@@ -174,6 +174,13 @@ const navigate = useNavigate()
   return (
     <div className="container">
       <h2>اضغط على الصورة للتحدث</h2>
+      <button
+  onClick={() => navigate(`/sentence-builder/${profileId}`)}
+  className="primary-btn"
+  style={{ marginTop: 0, marginBottom: 20 }}
+>
+  🧩 تركيب جملة
+</button>
 
       {/* Sentence Builder */}
       <div className="sentence-bar">
