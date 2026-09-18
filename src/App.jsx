@@ -11,6 +11,7 @@ export default function App() {
       <Route path="/profiles" element={<ProfileSelect />} />
       <Route path="/board/:profileId" element={<Board />} />
       <Route path="/admin" element={<Admin />} />
+      <Route path="/sentence-builder/:profileId" element={<SentenceBuilder />} />
     </Routes>
   )
 }
