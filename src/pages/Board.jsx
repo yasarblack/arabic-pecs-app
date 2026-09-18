@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useNavigate, useParams } from 'react-router-dom'
 export default function Board() {
   const { profileId } = useParams()
-
+const navigate = useNavigate()
   const [categories, setCategories] = useState([])
   const [activeCategory, setActiveCategory] = useState(null)
   const [cards, setCards] = useState([])
