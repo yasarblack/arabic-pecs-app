@@ -197,4 +197,100 @@ export default function Training() {
 
       <h2>🎯 وضع التدريب</h2>
       <p style={{ fontSize: 18, marginBottom: 8 }}>
-        {
+        {profile.child_name} — المستوى الحالي: <strong>{profile.level || 1}</strong>
+      </p>
+
+      {message && (
+        <div style={{
+          background: message.includes('ممتاز') || message.includes('رائع') ? '#d8f3dc' : '#fff3cd',
+          padding: '12px 20px',
+          borderRadius: 16,
+          marginBottom: 20,
+          fontWeight: 'bold',
+          fontSize: 18
+        }}>
+          {message}
+        </div>
+      )}
+
+      {/* المستوى 1 و 2 */}
+      {currentCard && (
+        <div style={{ marginTop: 30 }}>
+          <p style={{ fontSize: 20, marginBottom: 16 }}>اضغط على الصورة واطلبها:</p>
+          <button
+            className="card-item"
+            style={{ maxWidth: 220, margin: '0 auto', display: 'block' }}
+            onClick={() => handleSuccess(currentCard)}
+          >
+            <img src={currentCard.image_url} alt={currentCard.label_ar} />
+            <span className="card-label">{currentCard.label_ar}</span>
+          </button>
+          <p style={{ marginTop: 20, color: '#666' }}>
+            قل: "أريد {currentCard.label_ar}"
+          </p>
+        </div>
+      )}
+
+      {/* المستوى 3: تمييز */}
+      {options.length > 0 && targetCard && (
+        <div style={{ marginTop: 30 }}>
+          <p style={{ fontSize: 20, marginBottom: 8 }}>
+            أين صورة <strong>{targetCard.label_ar}</strong>؟
+          </p>
+          <button
+            onClick={() => playAudio(targetCard)}
+            className="primary-btn"
+            style={{ marginBottom: 20 }}
+          >
+            🔊 اسمع الاسم
+          </button>
+
+          <div className="cards-grid" style={{ maxWidth: 500, margin: '0 auto' }}>
+            {options.map(card => (
+              <button
+                key={card.id}
+                className="card-item"
+                onClick={() => {
+                  if (card.id === targetCard.id) {
+                    handleSuccess(card)
+                  } else {
+                    handleWrong()
+                  }
+                }}
+              >
+                <img src={card.image_url} alt={card.label_ar} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* المستوى 4 فما فوق */}
+      {(profile.level || 1) >= 4 && !currentCard && options.length === 0 && (
+        <div style={{ marginTop: 40 }}>
+          <p style={{ fontSize: 18 }}>
+            أنت في مستوى بناء الجمل.<br />
+            انتقل إلى صفحة تركيب الجملة للتدريب.
+          </p>
+          <button
+            className="primary-btn"
+            onClick={() => navigate(`/sentence-builder/${profileId}`)}
+            style={{ marginTop: 16 }}
+          >
+            🧩 الذهاب لتركيب الجملة
+          </button>
+        </div>
+      )}
+
+      <div style={{ marginTop: 40 }}>
+        <button
+          className="primary-btn"
+          style={{ background: '#2a9d8f' }}
+          onClick={() => startActivity(profile.level || 1, cards)}
+        >
+          🔄 نشاط جديد
+        </button>
+      </div>
+    </div>
+  )
+}
