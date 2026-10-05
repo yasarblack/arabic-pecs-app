@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 
@@ -9,11 +9,16 @@ export default function Training() {
   const [profile, setProfile] = useState(null)
   const [cards, setCards] = useState([])
   const [currentCard, setCurrentCard] = useState(null)
-  const [options, setOptions] = useState([]) // للتمييز
+  const [options, setOptions] = useState([])
   const [targetCard, setTargetCard] = useState(null)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [successCount, setSuccessCount] = useState(0)
+
+  // نستخدم refs عشان نتجنب مشاكل الـ stale state
+  const cardsRef = useRef([])
+  const profileRef = useRef(null)
+  const lastCardIdRef = useRef(null)
 
   useEffect(() => {
     loadData()
@@ -22,7 +27,6 @@ export default function Training() {
   async function loadData() {
     setLoading(true)
 
-    // جلب بيانات الطفل
     const { data: profileData } = await supabase
       .from('profiles')
       .select('*')
@@ -33,9 +37,10 @@ export default function Training() {
       navigate('/profiles')
       return
     }
-    setProfile(profileData)
 
-    // جلب البطاقات المناسبة للمستوى
+    setProfile(profileData)
+    profileRef.current = profileData
+
     const maxDifficulty = profileData.level || 1
 
     const { data: cardsData } = await supabase
@@ -44,13 +49,25 @@ export default function Training() {
       .lte('difficulty_level', maxDifficulty)
       .order('difficulty_level')
 
-    setCards(cardsData || [])
+    const safeCards = cardsData || []
+    setCards(safeCards)
+    cardsRef.current = safeCards
     setLoading(false)
 
-    // بدء نشاط حسب المستوى
-    if (cardsData?.length) {
-      startActivity(profileData.level || 1, cardsData)
+    if (safeCards.length) {
+      startActivity(profileData.level || 1, safeCards)
     }
+  }
+
+  function getRandomCard(availableCards, excludeId = null) {
+    if (!availableCards.length) return null
+
+    let pool = availableCards
+    if (excludeId && availableCards.length > 1) {
+      pool = availableCards.filter(c => c.id !== excludeId)
+    }
+
+    return pool[Math.floor(Math.random() * pool.length)]
   }
 
   function startActivity(level, availableCards) {
@@ -58,18 +75,19 @@ export default function Training() {
     setSuccessCount(0)
 
     if (level <= 2) {
-      // المستوى 1-2: بطاقة واحدة
-      const random = availableCards[Math.floor(Math.random() * availableCards.length)]
-      setCurrentCard(random)
-      setOptions([])
-      setTargetCard(null)
+      const card = getRandomCard(availableCards, lastCardIdRef.current)
+      if (card) {
+        lastCardIdRef.current = card.id
+        setCurrentCard(card)
+        setOptions([])
+        setTargetCard(null)
+      }
     } else if (level === 3) {
-      // المستوى 3: تمييز
       startDiscrimination(availableCards)
     } else {
-      // المستوى 4 فما فوق: نوجه لبناء الجملة
       setCurrentCard(null)
       setOptions([])
+      setTargetCard(null)
     }
   }
 
@@ -79,15 +97,18 @@ export default function Training() {
       return
     }
 
-    // اختيار البطاقة الصحيحة
-    const correct = availableCards[Math.floor(Math.random() * availableCards.length)]
+    // نتجنب تكرار نفس البطاقة الصحيحة مباشرة
+    const correct = getRandomCard(availableCards, lastCardIdRef.current)
+    if (!correct) return
+
+    lastCardIdRef.current = correct.id
     setTargetCard(correct)
 
     // اختيار بطاقات خاطئة
     const others = availableCards
       .filter(c => c.id !== correct.id)
       .sort(() => 0.5 - Math.random())
-      .slice(0, 2)
+      .slice(0, Math.min(2, availableCards.length - 1))
 
     const mixed = [correct, ...others].sort(() => 0.5 - Math.random())
     setOptions(mixed)
@@ -95,11 +116,13 @@ export default function Training() {
   }
 
   function playAudio(card) {
-    if (card?.audio_url) {
+    if (!card) return
+
+    if (card.audio_url) {
       const audio = new Audio(card.audio_url)
       audio.play().catch(() => speak(card.label_ar))
     } else {
-      speak(card?.label_ar)
+      speak(card.label_ar)
     }
   }
 
@@ -113,6 +136,8 @@ export default function Training() {
   }
 
   async function handleSuccess(card) {
+    if (!card) return
+
     setMessage('ممتاز! أحسنت 👏')
     playAudio(card)
     setSuccessCount(prev => prev + 1)
@@ -126,22 +151,28 @@ export default function Training() {
       last_pressed_at: new Date().toISOString()
     }, { onConflict: 'profile_id,card_id' })
 
-    // رفع المستوى بعد 5 نجاحات متتالية (مثال بسيط)
-    if (successCount + 1 >= 5 && profile.level < 6) {
-      const newLevel = profile.level + 1
+    const currentLevel = profileRef.current?.level || 1
+
+    // رفع المستوى بعد 5 نجاحات
+    if (successCount + 1 >= 5 && currentLevel < 6) {
+      const newLevel = currentLevel + 1
       await supabase
         .from('profiles')
         .update({ level: newLevel })
         .eq('id', profileId)
 
-      setProfile(prev => ({ ...prev, level: newLevel }))
+      const updatedProfile = { ...profileRef.current, level: newLevel }
+      setProfile(updatedProfile)
+      profileRef.current = updatedProfile
       setMessage(`رائع! انتقلت إلى المستوى ${newLevel} 🎉`)
     }
 
-    // إعادة النشاط بعد ثانيتين
+    // ننتظر شوية ثم نبدأ نشاط جديد باستخدام القيم الحديثة من الـ refs
     setTimeout(() => {
-      startActivity(profile.level, cards)
-    }, 1800)
+      const latestCards = cardsRef.current
+      const latestLevel = profileRef.current?.level || 1
+      startActivity(latestLevel, latestCards)
+    }, 1600)
   }
 
   function handleWrong() {
@@ -166,100 +197,4 @@ export default function Training() {
 
       <h2>🎯 وضع التدريب</h2>
       <p style={{ fontSize: 18, marginBottom: 8 }}>
-        {profile.child_name} — المستوى الحالي: <strong>{profile.level || 1}</strong>
-      </p>
-
-      {message && (
-        <div style={{
-          background: message.includes('ممتاز') || message.includes('رائع') ? '#d8f3dc' : '#fff3cd',
-          padding: '12px 20px',
-          borderRadius: 16,
-          marginBottom: 20,
-          fontWeight: 'bold',
-          fontSize: 18
-        }}>
-          {message}
-        </div>
-      )}
-
-      {/* المستوى 1 و 2 */}
-      {currentCard && (
-        <div style={{ marginTop: 30 }}>
-          <p style={{ fontSize: 20, marginBottom: 16 }}>اضغط على الصورة واطلبها:</p>
-          <button
-            className="card-item"
-            style={{ maxWidth: 220, margin: '0 auto', display: 'block' }}
-            onClick={() => handleSuccess(currentCard)}
-          >
-            <img src={currentCard.image_url} alt={currentCard.label_ar} />
-            <span className="card-label">{currentCard.label_ar}</span>
-          </button>
-          <p style={{ marginTop: 20, color: '#666' }}>
-            قل: "أريد {currentCard.label_ar}"
-          </p>
-        </div>
-      )}
-
-      {/* المستوى 3: تمييز */}
-      {options.length > 0 && targetCard && (
-        <div style={{ marginTop: 30 }}>
-          <p style={{ fontSize: 20, marginBottom: 8 }}>
-            أين صورة <strong>{targetCard.label_ar}</strong>؟
-          </p>
-          <button
-            onClick={() => playAudio(targetCard)}
-            className="primary-btn"
-            style={{ marginBottom: 20 }}
-          >
-            🔊 اسمع الاسم
-          </button>
-
-          <div className="cards-grid" style={{ maxWidth: 500, margin: '0 auto' }}>
-            {options.map(card => (
-              <button
-                key={card.id}
-                className="card-item"
-                onClick={() => {
-                  if (card.id === targetCard.id) {
-                    handleSuccess(card)
-                  } else {
-                    handleWrong()
-                  }
-                }}
-              >
-                <img src={card.image_url} alt={card.label_ar} />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* المستوى 4 فما فوق */}
-      {(profile.level || 1) >= 4 && !currentCard && options.length === 0 && (
-        <div style={{ marginTop: 40 }}>
-          <p style={{ fontSize: 18 }}>
-            أنت في مستوى بناء الجمل.  
-            انتقل إلى صفحة تركيب الجملة للتدريب.
-          </p>
-          <button
-            className="primary-btn"
-            onClick={() => navigate(`/sentence-builder/${profileId}`)}
-            style={{ marginTop: 16 }}
-          >
-            🧩 الذهاب لتركيب الجملة
-          </button>
-        </div>
-      )}
-
-      <div style={{ marginTop: 40 }}>
-        <button
-          className="primary-btn"
-          style={{ background: '#2a9d8f' }}
-          onClick={() => startActivity(profile.level || 1, cards)}
-        >
-          🔄 نشاط جديد
-        </button>
-      </div>
-    </div>
-  )
-}
+        {
