@@ -82,19 +82,30 @@ export default function ProfileSelect() {
         </button>
       )}
 
-      <div className="profile-grid">
-        {profiles.map((p) => (
-          <div
-            key={p.id}
-            className="profile-card"
-            onClick={() => navigate(`/board/${p.id}`)}
-            style={{ cursor: 'pointer' }}
-          >
-            👦 {p.child_name}
-          </div>
-        ))}
+      
+<div className="profile-grid">
+  {profiles.map((p) => (
+    <div key={p.id} className="profile-card">
+      <div
+        onClick={() => navigate(`/board/${p.id}`)}
+        style={{ cursor: 'pointer', marginBottom: 12 }}
+      >
+        👦 {p.child_name}
+        <div style={{ fontSize: 14, color: '#666', marginTop: 6 }}>
+          المستوى: {p.level || 1}
+        </div>
       </div>
 
+      <button
+        className="primary-btn"
+        style={{ width: '100%', padding: '10px', fontSize: 15, marginTop: 8 }}
+        onClick={() => navigate(`/training/${p.id}`)}
+      >
+        🎯 بدء التدريب
+      </button>
+    </div>
+  ))}
+</div>
       <form onSubmit={addProfile} style={{ marginTop: 32, maxWidth: 320, margin: '32px auto 0' }}>
         <input
           type="text"
