@@ -13,12 +13,12 @@ export default function Training() {
   const [targetCard, setTargetCard] = useState(null)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
-  const [successCount, setSuccessCount] = useState(0)
 
-  // نستخدم refs عشان نتجنب مشاكل الـ stale state
+  // نستخدم refs لتتبع التقدم بشكل موثوق
   const cardsRef = useRef([])
   const profileRef = useRef(null)
   const lastCardIdRef = useRef(null)
+  const successCountRef = useRef(0) // ← مهم: نتتبع النجاح هنا
 
   useEffect(() => {
     loadData()
@@ -41,12 +41,12 @@ export default function Training() {
     setProfile(profileData)
     profileRef.current = profileData
 
-    const maxDifficulty = profileData.level || 1
+    const maxDifficulty = Math.max(profileData.level || 1, 1)
 
     const { data: cardsData } = await supabase
       .from('cards')
       .select('*')
-      .lte('difficulty_level', maxDifficulty)
+      .lte('difficulty_level', maxDifficulty + 1) // نجيب شوية بطاقات إضافية
       .order('difficulty_level')
 
     const safeCards = cardsData || []
@@ -60,21 +60,19 @@ export default function Training() {
   }
 
   function getRandomCard(availableCards, excludeId = null) {
-    if (!availableCards.length) return null
-
+    if (!availableCards?.length) return null
     let pool = availableCards
     if (excludeId && availableCards.length > 1) {
       pool = availableCards.filter(c => c.id !== excludeId)
     }
-
     return pool[Math.floor(Math.random() * pool.length)]
   }
 
   function startActivity(level, availableCards) {
     setMessage('')
-    setSuccessCount(0)
 
-    if (level <= 2) {
+    if (level <= 1) {
+      // المستوى 1: بطاقة واحدة + لازم يسمع الاسم أولاً (أكثر تحدياً)
       const card = getRandomCard(availableCards, lastCardIdRef.current)
       if (card) {
         lastCardIdRef.current = card.id
@@ -82,33 +80,36 @@ export default function Training() {
         setOptions([])
         setTargetCard(null)
       }
+    } else if (level === 2) {
+      // المستوى 2: تمييز بسيط (بطاقتين)
+      startDiscrimination(availableCards, 1) // بطاقة خاطئة واحدة
     } else if (level === 3) {
-      startDiscrimination(availableCards)
+      // المستوى 3: تمييز أقوى (3 بطاقات)
+      startDiscrimination(availableCards, 2)
     } else {
+      // المستوى 4+
       setCurrentCard(null)
       setOptions([])
       setTargetCard(null)
     }
   }
 
-  function startDiscrimination(availableCards) {
+  function startDiscrimination(availableCards, wrongCount = 2) {
     if (availableCards.length < 2) {
       setMessage('تحتاج بطاقات أكثر لهذا المستوى')
       return
     }
 
-    // نتجنب تكرار نفس البطاقة الصحيحة مباشرة
     const correct = getRandomCard(availableCards, lastCardIdRef.current)
     if (!correct) return
 
     lastCardIdRef.current = correct.id
     setTargetCard(correct)
 
-    // اختيار بطاقات خاطئة
     const others = availableCards
       .filter(c => c.id !== correct.id)
       .sort(() => 0.5 - Math.random())
-      .slice(0, Math.min(2, availableCards.length - 1))
+      .slice(0, wrongCount)
 
     const mixed = [correct, ...others].sort(() => 0.5 - Math.random())
     setOptions(mixed)
@@ -117,7 +118,6 @@ export default function Training() {
 
   function playAudio(card) {
     if (!card) return
-
     if (card.audio_url) {
       const audio = new Audio(card.audio_url)
       audio.play().catch(() => speak(card.label_ar))
@@ -140,7 +140,10 @@ export default function Training() {
 
     setMessage('ممتاز! أحسنت 👏')
     playAudio(card)
-    setSuccessCount(prev => prev + 1)
+
+    // زيادة عدد النجاحات بشكل موثوق
+    successCountRef.current += 1
+    const currentSuccesses = successCountRef.current
 
     // تسجيل التقدم
     await supabase.from('progress').upsert({
@@ -153,9 +156,10 @@ export default function Training() {
 
     const currentLevel = profileRef.current?.level || 1
 
-    // رفع المستوى بعد 5 نجاحات
-    if (successCount + 1 >= 5 && currentLevel < 6) {
+    // شرط الانتقال للمستوى التالي (5 نجاحات)
+    if (currentSuccesses >= 5 && currentLevel < 6) {
       const newLevel = currentLevel + 1
+
       await supabase
         .from('profiles')
         .update({ level: newLevel })
@@ -164,10 +168,12 @@ export default function Training() {
       const updatedProfile = { ...profileRef.current, level: newLevel }
       setProfile(updatedProfile)
       profileRef.current = updatedProfile
+
+      successCountRef.current = 0 // نبدأ عداد جديد للمستوى الجديد
       setMessage(`رائع! انتقلت إلى المستوى ${newLevel} 🎉`)
     }
 
-    // ننتظر شوية ثم نبدأ نشاط جديد باستخدام القيم الحديثة من الـ refs
+    // ننتظر ثم نبدأ نشاط جديد
     setTimeout(() => {
       const latestCards = cardsRef.current
       const latestLevel = profileRef.current?.level || 1
@@ -199,6 +205,9 @@ export default function Training() {
       <p style={{ fontSize: 18, marginBottom: 8 }}>
         {profile.child_name} — المستوى الحالي: <strong>{profile.level || 1}</strong>
       </p>
+      <p style={{ fontSize: 14, color: '#666', marginBottom: 16 }}>
+        النجاحات الحالية: {successCountRef.current} / 5
+      </p>
 
       {message && (
         <div style={{
@@ -213,10 +222,19 @@ export default function Training() {
         </div>
       )}
 
-      {/* المستوى 1 و 2 */}
+      {/* المستوى 1: بطاقة واحدة + يجب سماع الاسم أولاً */}
       {currentCard && (
         <div style={{ marginTop: 30 }}>
-          <p style={{ fontSize: 20, marginBottom: 16 }}>اضغط على الصورة واطلبها:</p>
+          <p style={{ fontSize: 20, marginBottom: 12 }}>استمع ثم اضغط على الصورة:</p>
+          
+          <button
+            onClick={() => playAudio(currentCard)}
+            className="primary-btn"
+            style={{ marginBottom: 20 }}
+          >
+            🔊 اسمع الاسم
+          </button>
+
           <button
             className="card-item"
             style={{ maxWidth: 220, margin: '0 auto', display: 'block' }}
@@ -225,13 +243,10 @@ export default function Training() {
             <img src={currentCard.image_url} alt={currentCard.label_ar} />
             <span className="card-label">{currentCard.label_ar}</span>
           </button>
-          <p style={{ marginTop: 20, color: '#666' }}>
-            قل: "أريد {currentCard.label_ar}"
-          </p>
         </div>
       )}
 
-      {/* المستوى 3: تمييز */}
+      {/* المستوى 2 و 3: تمييز */}
       {options.length > 0 && targetCard && (
         <div style={{ marginTop: 30 }}>
           <p style={{ fontSize: 20, marginBottom: 8 }}>
@@ -265,7 +280,7 @@ export default function Training() {
         </div>
       )}
 
-      {/* المستوى 4 فما فوق */}
+      {/* المستوى 4+ */}
       {(profile.level || 1) >= 4 && !currentCard && options.length === 0 && (
         <div style={{ marginTop: 40 }}>
           <p style={{ fontSize: 18 }}>
@@ -286,7 +301,10 @@ export default function Training() {
         <button
           className="primary-btn"
           style={{ background: '#2a9d8f' }}
-          onClick={() => startActivity(profile.level || 1, cards)}
+          onClick={() => {
+            successCountRef.current = 0
+            startActivity(profile.level || 1, cards)
+          }}
         >
           🔄 نشاط جديد
         </button>
